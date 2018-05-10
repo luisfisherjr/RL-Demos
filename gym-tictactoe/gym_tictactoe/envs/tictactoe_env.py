@@ -10,6 +10,8 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 
+from tkinter import *
+
 
 # In[2]:
 
@@ -33,6 +35,7 @@ class TicTacToeEnv(gym.Env):
         board = self.__state['board'] # get board
         player = self.__state['player'] # get player
         opponent = self.__state['opponent'] # get opponent
+        mode = self.__mode # get mode for solver
         
         if board[row_p][col_p] != ' ': # illegal move
             done = True
@@ -46,7 +49,7 @@ class TicTacToeEnv(gym.Env):
             if player in possible_win_move_p:
                 
                 done = True
-                reward = 1000
+                reward = 100
             
             elif not get_empty_spaces(board):
                 
@@ -55,7 +58,10 @@ class TicTacToeEnv(gym.Env):
             
             else:
                 
-                row_o, col_o = tictactoe_solver(board, opponent)
+                row_o, col_o = tictactoe_solver(board, opponent, mode)
+                
+                # cycle between easy and hard modes of solver
+                mode = not mode
 
                 possible_win_move_o = victory_move(board, (row_o, col_o))
                 board[row_o][col_o] = opponent
@@ -63,14 +69,14 @@ class TicTacToeEnv(gym.Env):
                 if opponent in possible_win_move_o:
                     
                     done = True
-                    reward = -1000
+                    reward = -100
                     
                 elif not get_empty_spaces(board):
                     done = True
-                    reward = 0 
+                    reward = 0
                     
         observation = dict(self.__state) # copy of game state
-        info = {} # empty info
+        info = {'mode': self.__mode} # empty info   
 
         return observation, reward, done, info
 
@@ -89,15 +95,40 @@ class TicTacToeEnv(gym.Env):
             self.__state['opponent'] = 'X'
             
             row, col = tictactoe_solver(self.__state['board'], self.__state['opponent'])
-            self.__state['board'][row][col] = self.__state['opponent']       
+            self.__state['board'][row][col] = self.__state['opponent']
+            
+        self.__mode = False
         
         initial_observation = dict(self.__state)
         
         return initial_observation
 
     def render(self, mode='human', close=False):
-        for row in self.__state['board']: # for every row
-            print(row) # print array
+        
+        if hasattr(self, '__tk'):
+        
+            self.__tk.quit()
+        
+        self.__tk = Tk()
+        
+        tick(self.__state['board'], self.__tk)
+        
+        self.__tk.mainloop( )
+
+
+
+# In[18]:
+
+
+def tick(board, tk):
+    
+    for row in range(3):
+        for col in range(3):
+            
+            button = Button(tk, text = board[row][col] , font = ('Times 175 bold'), height = 1, width = 2)
+            button.grid(row = row, column = col, sticky = N + S + E + W)
+    
+    button.after(200, tick)
 
 
 # In[3]:
@@ -114,7 +145,7 @@ def get_empty_spaces(board):
     return empty_spaces
 
 
-# In[4]:
+# In[ ]:
 
 
 def victory_move(board, possible_move):
@@ -146,10 +177,10 @@ def victory_move(board, possible_move):
     return victors
 
 
-# In[5]:
+# In[ ]:
 
 
-def tictactoe_solver(board, solver):
+def tictactoe_solver(board, solver, easy = False):
     
     """
     board: 3x3 np.array of chars ' ', 'X', and 'O'
@@ -162,8 +193,12 @@ def tictactoe_solver(board, solver):
         opponent = 'O'
 
     win_moves = {'X': [], 'O': []}
+ 
     
     possible_moves = get_empty_spaces(board)
+    
+    if easy:
+        return random.choice(possible_moves)
 
     for move in possible_moves:
 
